@@ -152,8 +152,9 @@ func (p *AliMNSClient) Send(method Method, headers map[string]string, message in
 
 	postBodyReader := strings.NewReader(string(xmlContent))
 
-	p.clientLocker.Lock()
-	defer p.clientLocker.Unlock()
+	// 莫名的lock 加这个是为了啥 想不通。。 推拉模式 加lock 这是直接限流请求了
+	// p.clientLocker.Lock()
+	// defer p.clientLocker.Unlock()
 
 	var req *http.Request
 	if req, err = http.NewRequest(string(method), url, postBodyReader); err != nil {
