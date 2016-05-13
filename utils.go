@@ -1,7 +1,6 @@
 package ali_mns
 
 import (
-	"bytes"
 	"net/http"
 	"io/ioutil"
 
@@ -30,14 +29,13 @@ func send(client MNSClient, decoder MNSDecoder, method Method, headers map[strin
 				return
 			}
 
-			errResp := ErrorResponse{}
-			bodyReader := bytes.NewReader(bodyBytes)
+			var e2 error
+			err, e2 = decoder.DecodeError(bodyBytes, resource)
 
-			if e2 := decoder.Decode(bodyReader, &errResp); e2 != nil {
+			if e2 != nil {
 				err = ERR_UNMARSHAL_ERROR_RESPONSE_FAILED.New(errors.Params{"err": e2, "resp":string(bodyBytes)})
 				return
 			}
-			err = ParseError(errResp, resource)
 			return
 		}
 

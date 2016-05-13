@@ -100,31 +100,28 @@ func main() {
 	respChan := make(chan ali_mns.MessageReceiveResponse)
 	errChan := make(chan error)
 	go func() {
-		for {
-			select {
-			case resp := <-respChan:
-				{
-					logs.Pretty("response:", resp)
-					fmt.Println("change the visibility: ", resp.ReceiptHandle)
-					if ret, e := queue.ChangeMessageVisibility(resp.ReceiptHandle, 5); e != nil {
+		select {
+		case resp := <-respChan:
+			{
+				logs.Pretty("response:", resp)
+				fmt.Println("change the visibility: ", resp.ReceiptHandle)
+				if ret, e := queue.ChangeMessageVisibility(resp.ReceiptHandle, 5); e != nil {
+					fmt.Println(e)
+				} else {
+					logs.Pretty("visibility changed", ret)
+					fmt.Println("delete it now: ", ret.ReceiptHandle)
+					if e := queue.DeleteMessage(ret.ReceiptHandle); e != nil {
 						fmt.Println(e)
-					} else {
-						logs.Pretty("visibility changed", ret)
-						fmt.Println("delete it now: ", ret.ReceiptHandle)
-						if e := queue.DeleteMessage(ret.ReceiptHandle); e != nil {
-							fmt.Println(e)
-						}
-						endChan <- 1
 					}
-				}
-			case err := <-errChan:
-				{
-					fmt.Println(err)
-                    endChan <- 1
+					endChan <- 1
 				}
 			}
+		case err := <-errChan:
+			{
+				fmt.Println(err)
+                endChan <- 1
+			}
 		}
-
 	}()
 
 	queue.ReceiveMessage(respChan, errChan, 30)

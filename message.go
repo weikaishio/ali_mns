@@ -119,9 +119,29 @@ type MessageSendResponse struct {
 	ReceiptHandle  string `xml:"ReceiptHandle,omitempty"`
 }
 
+type BatchMessageSendEntry struct {
+	XMLName  xml.Name              `xml:"Message" json:"-"`
+	ErrorCode      string `xml:"ErrorCode,omitempty" json:"error_code,omitempty"`
+	ErrorMessage   string `xml:"ErrorMessage,omitempty" json:"error_messages,omitempty"`
+	MessageId      string `xml:"MessageId,omitempty" json:"message_id,omitempty"`
+	MessageBodyMD5 string `xml:"MessageBodyMD5,omitempty" json:"message_body_md5,omitempty"`
+}
+
 type BatchMessageSendResponse struct {
 	XMLName  xml.Name              `xml:"Messages" json:"-"`
-	Messages []MessageSendResponse `xml:"Message" json:"messages"`
+	Messages []BatchMessageSendEntry `xml:"Message" json:"messages"`
+}
+
+type MessageDeleteFailEntry struct {
+	XMLName  xml.Name              `xml:"Error" json:"-"`
+	ErrorCode      string `xml:"ErrorCode" json:"error_code"`
+	ErrorMessage   string `xml:"ErrorMessage" json:"error_messages"`
+	ReceiptHandle  string `xml:"ReceiptHandle,omitempty" json:"receipt_handle"`
+}
+
+type BatchMessageDeleteErrorResponse struct {
+	XMLName  xml.Name              `xml:"Errors" json:"-"`
+	FailedMessages []MessageDeleteFailEntry `xml:"Error" json:"errors"`
 }
 
 type CreateQueueRequest struct {

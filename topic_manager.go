@@ -34,7 +34,7 @@ func checkTopicName(topicName string) (err error) {
 func NewMNSTopicManager(client MNSClient) AliTopicManager {
 	return &MNSTopicManager{
 		cli:         client,
-		decoder:     new(AliMNSDecoder),
+		decoder:     NewAliMNSDecoder(),
 	}
 }
 

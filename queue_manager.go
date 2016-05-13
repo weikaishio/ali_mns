@@ -74,7 +74,7 @@ func checkPollingWaitSeconds(pollingWaitSeconds int32) (err error) {
 func NewMNSQueueManager(client MNSClient) AliQueueManager {
 	return &MNSQueueManager{
 		cli:         client,
-		decoder:     new(AliMNSDecoder),
+		decoder:     NewAliMNSDecoder(),
 	}
 }
 

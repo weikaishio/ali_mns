@@ -44,15 +44,6 @@ func main() {
 		return
 	}
 
-	var queues ali_mns.Queues
-    queues, err = queueManager.ListQueue("", 100, "")
-    if err != nil {
-        fmt.Println(err)
-		return
-    }
-
-    logs.Pretty("", queues)
-
 	queue := ali_mns.NewMNSQueue("test", client)
 	ret, err := queue.SendMessage(msg)
 
@@ -66,31 +57,28 @@ func main() {
 	respChan := make(chan ali_mns.MessageReceiveResponse)
 	errChan := make(chan error)
 	go func() {
-		for {
-			select {
-			case resp := <-respChan:
-				{
-					logs.Pretty("response:", resp)
-					logs.Debug("change the visibility: ", resp.ReceiptHandle)
-					if ret, e := queue.ChangeMessageVisibility(resp.ReceiptHandle, 5); e != nil {
+		select {
+		case resp := <-respChan:
+			{
+				logs.Pretty("response:", resp)
+				logs.Debug("change the visibility: ", resp.ReceiptHandle)
+				if ret, e := queue.ChangeMessageVisibility(resp.ReceiptHandle, 5); e != nil {
+					fmt.Println(e)
+				} else {
+					logs.Pretty("visibility changed", ret)
+					logs.Debug("delete it now: ", ret.ReceiptHandle)
+					if e := queue.DeleteMessage(ret.ReceiptHandle); e != nil {
 						fmt.Println(e)
-					} else {
-						logs.Pretty("visibility changed", ret)
-						logs.Debug("delete it now: ", ret.ReceiptHandle)
-						if e := queue.DeleteMessage(ret.ReceiptHandle); e != nil {
-							fmt.Println(e)
-						}
-						endChan <- 1
 					}
-				}
-			case err := <-errChan:
-				{
-					fmt.Println(err)
 					endChan <- 1
 				}
 			}
+		case err := <-errChan:
+			{
+				fmt.Println(err)
+				endChan <- 1
+			}
 		}
-
 	}()
 
 	queue.ReceiveMessage(respChan, errChan, 30)

@@ -11,20 +11,20 @@ var (
 type AliMNSQueue interface {
 	Name() string
 	SendMessage(message MessageSendRequest) (resp MessageSendResponse, err error)
-	//BatchSendMessage(messages ...MessageSendRequest) (resp BatchMessageSendResponse, err error)
+	BatchSendMessage(messages ...MessageSendRequest) (resp BatchMessageSendResponse, err error)
 	ReceiveMessage(respChan chan MessageReceiveResponse, errChan chan error, waitseconds ...int64)
 	BatchReceiveMessage(respChan chan BatchMessageReceiveResponse, errChan chan error, numOfMessages int32, waitseconds ...int64)
 	PeekMessage(respChan chan MessageReceiveResponse, errChan chan error)
 	BatchPeekMessage(respChan chan BatchMessageReceiveResponse, errChan chan error, numOfMessages int32)
 	DeleteMessage(receiptHandle string) (err error)
-	//BatchDeleteMessage(receiptHandles ...string) (err error)
+	BatchDeleteMessage(receiptHandles ...string) (resp BatchMessageDeleteErrorResponse, err error)
 	ChangeMessageVisibility(receiptHandle string, visibilityTimeout int64) (resp MessageVisibilityChangeResponse, err error)
 }
 
 type MNSQueue struct {
-	name       string
-	client     MNSClient
-	decoder    MNSDecoder
+	name          string
+	client        MNSClient
+	decoder       MNSDecoder
 
 	qpsMonitor *QPSMonitor
 }
@@ -57,7 +57,6 @@ func (p *MNSQueue) SendMessage(message MessageSendRequest) (resp MessageSendResp
 	return
 }
 
-/*
 func (p *MNSQueue) BatchSendMessage(messages ...MessageSendRequest) (resp BatchMessageSendResponse, err error) {
 	if messages == nil || len(messages) == 0 {
 		return
@@ -69,10 +68,9 @@ func (p *MNSQueue) BatchSendMessage(messages ...MessageSendRequest) (resp BatchM
 	}
 
 	p.qpsMonitor.checkQPS()
-	_, err = send(p.client, p.decoder, POST, nil, batchRequest, fmt.Sprintf("queues/%s/%s", p.name, "messages"), &resp)
+	_, err = send(p.client, NewBatchOpDecoder(&resp), POST, nil, batchRequest, fmt.Sprintf("queues/%s/%s", p.name, "messages"), &resp)
 	return
 }
-*/
 
 func (p *MNSQueue) ReceiveMessage(respChan chan MessageReceiveResponse, errChan chan error, waitseconds ...int64) {
 	resource := fmt.Sprintf("queues/%s/%s", p.name, "messages")
@@ -146,8 +144,7 @@ func (p *MNSQueue) DeleteMessage(receiptHandle string) (err error) {
 	return
 }
 
-/*
-func (p *MNSQueue) BatchDeleteMessage(receiptHandles ...string) (err error) {
+func (p *MNSQueue) BatchDeleteMessage(receiptHandles ...string) (resp BatchMessageDeleteErrorResponse, err error) {
 	if receiptHandles == nil || len(receiptHandles) == 0 {
 		return
 	}
@@ -159,10 +156,10 @@ func (p *MNSQueue) BatchDeleteMessage(receiptHandles ...string) (err error) {
 	}
 
 	p.qpsMonitor.checkQPS()
-	_, err = send(p.client, p.decoder, DELETE, nil, handlers, fmt.Sprintf("queues/%s/%s", p.name, "messages"), nil)
+	_, err = send(p.client, NewBatchOpDecoder(&resp), DELETE, nil, handlers, fmt.Sprintf("queues/%s/%s", p.name, "messages"), nil)
+
 	return
 }
-*/
 
 func (p *MNSQueue) ChangeMessageVisibility(receiptHandle string, visibilityTimeout int64) (resp MessageVisibilityChangeResponse, err error) {
 	p.qpsMonitor.checkQPS()
