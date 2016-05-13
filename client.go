@@ -17,6 +17,15 @@ import (
 )
 
 const (
+	DefaultQueueQPSLimit      int32 = 2000
+	DefaultTopicQPSLimit      int32 = 2000
+)
+
+const (
+	GLOBAL_PROXY = "MNS_GLOBAL_PROXY"
+)
+
+const (
 	version = "2015-06-06"
 )
 
@@ -44,15 +53,21 @@ const (
 type MNSClient interface {
 	Send(method Method, headers map[string]string, message interface{}, resource string) (resp *http.Response, err error)
 	SetProxy(url string)
+
+	getAccountID() (accountId string)
+	getRegion() (region string)
 }
 
-type AliMNSClient struct {
+type aliMNSClient struct {
 	Timeout     int64
 	url         string
 	credential  Credential
 	accessKeyId string
 	client      *http.Client
 	proxyURL    string
+
+	accountId   string
+	region      string
 
 	clientLocker sync.Mutex
 }
@@ -64,21 +79,41 @@ func NewAliMNSClient(url, accessKeyId, accessKeySecret string) MNSClient {
 
 	credential := NewAliMNSCredential(accessKeySecret)
 
-	aliMNSClient := new(AliMNSClient)
-	aliMNSClient.credential = credential
-	aliMNSClient.accessKeyId = accessKeyId
-	aliMNSClient.url = url
+	cli := new(aliMNSClient)
+	cli.credential = credential
+	cli.accessKeyId = accessKeyId
+	cli.url = url
 
-	if globalurl := os.Getenv(GLOBAL_PROXY); globalurl != "" {
-		aliMNSClient.proxyURL = globalurl
+	// 1. parse region and accountid
+	pieces := strings.Split(url, ".")
+	if len(pieces) != 5 {
+		panic("ali-mns: message queue url is invalid")
 	}
 
-	aliMNSClient.initClient()
+	accountIdSlice := strings.Split(pieces[0], "/")
+	cli.accountId = accountIdSlice[len(accountIdSlice) - 1]
 
-	return aliMNSClient
+	regionSlice := strings.Split(pieces[2], "-internal")
+	cli.region = regionSlice[0]
+
+	if globalurl := os.Getenv(GLOBAL_PROXY); globalurl != "" {
+		cli.proxyURL = globalurl
+	}
+
+    // 2. now init http client
+	cli.initClient()
+	return cli
 }
 
-func (p *AliMNSClient) SetProxy(url string) {
+func (p aliMNSClient) getAccountID() (accountId string) {
+	return p.accountId;
+}
+
+func (p aliMNSClient) getRegion() (region string) {
+	return p.region
+}
+
+func (p *aliMNSClient) SetProxy(url string) {
 	if url == p.proxyURL {
 		return
 	}
@@ -86,7 +121,7 @@ func (p *AliMNSClient) SetProxy(url string) {
 	p.proxyURL = url
 }
 
-func (p *AliMNSClient) initClient() {
+func (p *aliMNSClient) initClient() {
 
 	p.clientLocker.Lock()
 	defer p.clientLocker.Unlock()
@@ -109,14 +144,14 @@ func (p *AliMNSClient) initClient() {
 	p.client = &http.Client{Transport: transport}
 }
 
-func (p *AliMNSClient) proxy(req *http.Request) (*url.URL, error) {
+func (p *aliMNSClient) proxy(req *http.Request) (*url.URL, error) {
 	if p.proxyURL != "" {
 		return url.Parse(p.proxyURL)
 	}
 	return nil, nil
 }
 
-func (p *AliMNSClient) authorization(method Method, headers map[string]string, resource string) (authHeader string, err error) {
+func (p *aliMNSClient) authorization(method Method, headers map[string]string, resource string) (authHeader string, err error) {
 	if signature, e := p.credential.Signature(method, headers, resource); e != nil {
 		return "", e
 	} else {
@@ -126,7 +161,7 @@ func (p *AliMNSClient) authorization(method Method, headers map[string]string, r
 	return
 }
 
-func (p *AliMNSClient) Send(method Method, headers map[string]string, message interface{}, resource string) (resp *http.Response, err error) {
+func (p *aliMNSClient) Send(method Method, headers map[string]string, message interface{}, resource string) (resp *http.Response, err error) {
 	var xmlContent []byte
 
 	if message == nil {
@@ -215,10 +250,19 @@ func initMNSErrors() {
 		"SignatureDoesNotMatch":      ERR_MNS_SIGNATURE_DOES_NOT_MATCH,
 		"TimeExpired":                ERR_MNS_TIME_EXPIRED,
 		"QpsLimitExceeded":           ERR_MNS_QPS_LIMIT_EXCEEDED,
+		"TopicAlreadyExist":          ERR_MNS_TOPIC_ALREADY_EXIST,
+		"TopicNameLengthError":       ERR_MNS_TOPIC_NAME_LENGTH_ERROR,
+		"TopicNotExist":              ERR_MNS_TOPIC_NOT_EXIST,
+		"SubscriptionNameLengthError":ERR_MNS_SUBSRIPTION_NAME_LENGTH_ERROR,
+		"TopicNameInvalid":           ERR_MNS_INVALID_TOPIC_NAME,
+		"SubsriptionNameInvalid":     ERR_MNS_INVALID_SUBSCRIPTION_NAME,
+		"SubscriptionAlreadyExist":   ERR_MNS_SUBSCRIPTION_ALREADY_EXIST,
+		"EndpointInvalid":            ERR_MNS_INVALID_ENDPOINT,
+		"SubscriberNotExist":         ERR_MNS_SUBSCRIBER_NOT_EXIST,
 	}
 }
 
-func ParseError(resp ErrorMessageResponse, resource string) (err error) {
+func ParseError(resp ErrorResponse, resource string) (err error) {
 	if errCodeTemplate, exist := errMapping[resp.Code]; exist {
 		err = errCodeTemplate.New(errors.Params{"resp": resp, "resource": resource})
 	} else {

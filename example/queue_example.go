@@ -3,9 +3,9 @@ package main
 import (
 	"encoding/json"
 	"io/ioutil"
-	"time"
+	"fmt"
 
-	"github.com/gogap/ali_mns"
+	"github.com/souriki/ali_mns"
 	"github.com/gogap/logs"
 )
 
@@ -31,19 +31,38 @@ func main() {
 		conf.AccessKeySecret)
 
 	msg := ali_mns.MessageSendRequest{
-		MessageBody:  []byte("hello gogap/ali_mns"),
+		MessageBody:  "hello <\"souriki/ali_mns\">",
 		DelaySeconds: 0,
 		Priority:     8}
+
+
+	queueManager := ali_mns.NewMNSQueueManager(client)
+	err := queueManager.CreateSimpleQueue("test")
+
+	if err != nil && !ali_mns.ERR_MNS_QUEUE_ALREADY_EXIST_AND_HAVE_SAME_ATTR.IsEqual(err) {
+		fmt.Println(err)
+		return
+	}
+
+	var queues ali_mns.Queues
+    queues, err = queueManager.ListQueue("", 100, "")
+    if err != nil {
+        fmt.Println(err)
+		return
+    }
+
+    logs.Pretty("", queues)
 
 	queue := ali_mns.NewMNSQueue("test", client)
 	ret, err := queue.SendMessage(msg)
 
 	if err != nil {
-		logs.Error(err)
+		fmt.Println(err)
 	} else {
 		logs.Pretty("response:", ret)
 	}
 
+	endChan := make(chan int)
 	respChan := make(chan ali_mns.MessageReceiveResponse)
 	errChan := make(chan error)
 	go func() {
@@ -54,28 +73,26 @@ func main() {
 					logs.Pretty("response:", resp)
 					logs.Debug("change the visibility: ", resp.ReceiptHandle)
 					if ret, e := queue.ChangeMessageVisibility(resp.ReceiptHandle, 5); e != nil {
-						logs.Error(e)
+						fmt.Println(e)
 					} else {
 						logs.Pretty("visibility changed", ret)
-					}
-
-					logs.Debug("delete it now: ", resp.ReceiptHandle)
-					if e := queue.DeleteMessage(resp.ReceiptHandle); e != nil {
-						logs.Error(e)
+						logs.Debug("delete it now: ", ret.ReceiptHandle)
+						if e := queue.DeleteMessage(ret.ReceiptHandle); e != nil {
+							fmt.Println(e)
+						}
+						endChan <- 1
 					}
 				}
 			case err := <-errChan:
 				{
-					logs.Error(err)
+					fmt.Println(err)
+					endChan <- 1
 				}
 			}
 		}
 
 	}()
 
-	queue.ReceiveMessage(respChan, errChan)
-	for {
-		time.Sleep(time.Second * 1)
-	}
-
+	queue.ReceiveMessage(respChan, errChan, 30)
+	<-endChan
 }

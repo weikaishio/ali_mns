@@ -9,29 +9,17 @@ import (
 	"github.com/gogap/errors"
 )
 
-type MNSLocation string
-
-const (
-	Beijing   MNSLocation = "cn-beijing"
-	Hangzhou  MNSLocation = "cn-hangzhou"
-	Qingdao   MNSLocation = "cn-qingdao"
-	Singapore MNSLocation = "ap-southeast-1"
-)
-
 type AliQueueManager interface {
-	CreateQueue(location MNSLocation, queueName string, delaySeconds int32, maxMessageSize int32, messageRetentionPeriod int32, visibilityTimeout int32, pollingWaitSeconds int32) (err error)
-	SetQueueAttributes(location MNSLocation, queueName string, delaySeconds int32, maxMessageSize int32, messageRetentionPeriod int32, visibilityTimeout int32, pollingWaitSeconds int32) (err error)
-	GetQueueAttributes(location MNSLocation, queueName string) (attr QueueAttribute, err error)
-	DeleteQueue(location MNSLocation, queueName string) (err error)
-	ListQueue(location MNSLocation, nextMarker string, retNumber int32, prefix string) (queues Queues, err error)
+    CreateSimpleQueue(queueName string) (err error)
+	CreateQueue(queueName string, delaySeconds int32, maxMessageSize int32, messageRetentionPeriod int32, visibilityTimeout int32, pollingWaitSeconds int32) (err error)
+	SetQueueAttributes(queueName string, delaySeconds int32, maxMessageSize int32, messageRetentionPeriod int32, visibilityTimeout int32, pollingWaitSeconds int32) (err error)
+	GetQueueAttributes(queueName string) (attr QueueAttribute, err error)
+	DeleteQueue(queueName string) (err error)
+	ListQueue(nextMarker string, retNumber int32, prefix string) (queues Queues, err error)
 }
 
 type MNSQueueManager struct {
-	ownerId         string
-	credential      Credential
-	accessKeyId     string
-	accessKeySecret string
-
+	cli     MNSClient
 	decoder MNSDecoder
 }
 
@@ -83,12 +71,10 @@ func checkPollingWaitSeconds(pollingWaitSeconds int32) (err error) {
 	return
 }
 
-func NewMNSQueueManager(ownerId, accessKeyId, accessKeySecret string) AliQueueManager {
+func NewMNSQueueManager(client MNSClient) AliQueueManager {
 	return &MNSQueueManager{
-		ownerId:         ownerId,
-		accessKeyId:     accessKeyId,
-		accessKeySecret: accessKeySecret,
-		decoder:         new(AliMNSDecoder),
+		cli:         client,
+		decoder:     new(AliMNSDecoder),
 	}
 }
 
@@ -111,7 +97,11 @@ func checkAttributes(delaySeconds int32, maxMessageSize int32, messageRetentionP
 	return
 }
 
-func (p *MNSQueueManager) CreateQueue(location MNSLocation, queueName string, delaySeconds int32, maxMessageSize int32, messageRetentionPeriod int32, visibilityTimeout int32, pollingWaitSeconds int32) (err error) {
+func (p *MNSQueueManager) CreateSimpleQueue(queueName string) (err error) {
+	return p.CreateQueue(queueName, 0, 65536, 345600, 30, 0)
+}
+
+func (p *MNSQueueManager) CreateQueue(queueName string, delaySeconds int32, maxMessageSize int32, messageRetentionPeriod int32, visibilityTimeout int32, pollingWaitSeconds int32) (err error) {
 	queueName = strings.TrimSpace(queueName)
 
 	if err = checkQueueName(queueName); err != nil {
@@ -134,12 +124,8 @@ func (p *MNSQueueManager) CreateQueue(location MNSLocation, queueName string, de
 		PollingWaitSeconds:     pollingWaitSeconds,
 	}
 
-	url := fmt.Sprintf("http://%s.mns.%s.aliyuncs.com", p.ownerId, string(location))
-
-	cli := NewAliMNSClient(url, p.accessKeyId, p.accessKeySecret)
-
 	var code int
-	code, err = send(cli, p.decoder, PUT, nil, &message, "queues/"+queueName, nil)
+	code, err = send(p.cli, p.decoder, PUT, nil, &message, "queues/"+queueName, nil)
 
 	if code == http.StatusNoContent {
 		err = ERR_MNS_QUEUE_ALREADY_EXIST_AND_HAVE_SAME_ATTR.New(errors.Params{"name": queueName})
@@ -149,7 +135,7 @@ func (p *MNSQueueManager) CreateQueue(location MNSLocation, queueName string, de
 	return
 }
 
-func (p *MNSQueueManager) SetQueueAttributes(location MNSLocation, queueName string, delaySeconds int32, maxMessageSize int32, messageRetentionPeriod int32, visibilityTimeout int32, pollingWaitSeconds int32) (err error) {
+func (p *MNSQueueManager) SetQueueAttributes(queueName string, delaySeconds int32, maxMessageSize int32, messageRetentionPeriod int32, visibilityTimeout int32, pollingWaitSeconds int32) (err error) {
 	queueName = strings.TrimSpace(queueName)
 
 	if err = checkQueueName(queueName); err != nil {
@@ -172,51 +158,35 @@ func (p *MNSQueueManager) SetQueueAttributes(location MNSLocation, queueName str
 		PollingWaitSeconds:     pollingWaitSeconds,
 	}
 
-	url := fmt.Sprintf("http://%s.mns.%s.aliyuncs.com", p.ownerId, string(location))
-
-	cli := NewAliMNSClient(url, p.accessKeyId, p.accessKeySecret)
-
-	_, err = send(cli, p.decoder, PUT, nil, &message, fmt.Sprintf("queues/%s?metaoverride=true", queueName), nil)
+	_, err = send(p.cli, p.decoder, PUT, nil, &message, fmt.Sprintf("queues/%s?metaoverride=true", queueName), nil)
 	return
 }
 
-func (p *MNSQueueManager) GetQueueAttributes(location MNSLocation, queueName string) (attr QueueAttribute, err error) {
+func (p *MNSQueueManager) GetQueueAttributes(queueName string) (attr QueueAttribute, err error) {
 	queueName = strings.TrimSpace(queueName)
 
 	if err = checkQueueName(queueName); err != nil {
 		return
 	}
 
-	url := fmt.Sprintf("http://%s.mns.%s.aliyuncs.com", p.ownerId, string(location))
-
-	cli := NewAliMNSClient(url, p.accessKeyId, p.accessKeySecret)
-
-	_, err = send(cli, p.decoder, GET, nil, nil, "queues/"+queueName, &attr)
+	_, err = send(p.cli, p.decoder, GET, nil, nil, "queues/"+queueName, &attr)
 
 	return
 }
 
-func (p *MNSQueueManager) DeleteQueue(location MNSLocation, queueName string) (err error) {
+func (p *MNSQueueManager) DeleteQueue(queueName string) (err error) {
 	queueName = strings.TrimSpace(queueName)
 
 	if err = checkQueueName(queueName); err != nil {
 		return
 	}
 
-	url := fmt.Sprintf("http://%s.mns.%s.aliyuncs.com", p.ownerId, string(location))
-
-	cli := NewAliMNSClient(url, p.accessKeyId, p.accessKeySecret)
-
-	_, err = send(cli, p.decoder, DELETE, nil, nil, "queues/"+queueName, nil)
+	_, err = send(p.cli, p.decoder, DELETE, nil, nil, "queues/"+queueName, nil)
 
 	return
 }
 
-func (p *MNSQueueManager) ListQueue(location MNSLocation, nextMarker string, retNumber int32, prefix string) (queues Queues, err error) {
-
-	url := fmt.Sprintf("http://%s.mns.%s.aliyuncs.com", p.ownerId, string(location))
-
-	cli := NewAliMNSClient(url, p.accessKeyId, p.accessKeySecret)
+func (p *MNSQueueManager) ListQueue(nextMarker string, retNumber int32, prefix string) (queues Queues, err error) {
 
 	header := map[string]string{}
 
@@ -231,7 +201,7 @@ func (p *MNSQueueManager) ListQueue(location MNSLocation, nextMarker string, ret
 		if retNumber >= 1 && retNumber <= 1000 {
 			header["x-mns-ret-number"] = strconv.Itoa(int(retNumber))
 		} else {
-			err = REE_MNS_GET_QUEUE_RET_NUMBER_RANGE_ERROR.New()
+			err = ERR_MNS_RET_NUMBER_RANGE_ERROR.New()
 			return
 		}
 	}
@@ -241,7 +211,7 @@ func (p *MNSQueueManager) ListQueue(location MNSLocation, nextMarker string, ret
 		header["x-mns-prefix"] = prefix
 	}
 
-	_, err = send(cli, p.decoder, GET, header, nil, "queues", &queues)
+	_, err = send(p.cli, p.decoder, GET, header, nil, "queues", &queues)
 
 	return
 }
