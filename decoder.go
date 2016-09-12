@@ -75,7 +75,7 @@ func (p *batchOpDecoder) DecodeError(bodyBytes []byte, resource string) (decoded
 		bodyReader.Seek(0, 0)
 		errResp := ErrorResponse{}
 		err = decoder.Decode(&errResp)
-		if err != nil {
+		if err == nil {
 			decodedError = ParseError(errResp, resource)
 		}
 	} else {
