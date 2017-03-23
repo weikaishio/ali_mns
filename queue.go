@@ -2,6 +2,7 @@ package ali_mns
 
 import (
 	"fmt"
+    "net/url"
 )
 
 var (
@@ -140,7 +141,7 @@ func (p *MNSQueue) BatchPeekMessage(respChan chan BatchMessageReceiveResponse, e
 
 func (p *MNSQueue) DeleteMessage(receiptHandle string) (err error) {
 	p.qpsMonitor.checkQPS()
-	_, err = send(p.client, p.decoder, DELETE, nil, nil, fmt.Sprintf("queues/%s/%s?ReceiptHandle=%s", p.name, "messages", receiptHandle), nil)
+	_, err = send(p.client, p.decoder, DELETE, nil, nil, fmt.Sprintf("queues/%s/%s?ReceiptHandle=%s", p.name, "messages", url.QueryEscape(receiptHandle)), nil)
 	return
 }
 
@@ -163,6 +164,6 @@ func (p *MNSQueue) BatchDeleteMessage(receiptHandles ...string) (resp BatchMessa
 
 func (p *MNSQueue) ChangeMessageVisibility(receiptHandle string, visibilityTimeout int64) (resp MessageVisibilityChangeResponse, err error) {
 	p.qpsMonitor.checkQPS()
-	_, err = send(p.client, p.decoder, PUT, nil, nil, fmt.Sprintf("queues/%s/%s?ReceiptHandle=%s&VisibilityTimeout=%d", p.name, "messages", receiptHandle, visibilityTimeout), &resp)
+	_, err = send(p.client, p.decoder, PUT, nil, nil, fmt.Sprintf("queues/%s/%s?ReceiptHandle=%s&VisibilityTimeout=%d", p.name, "messages", url.QueryEscape(receiptHandle), visibilityTimeout), &resp)
 	return
 }
