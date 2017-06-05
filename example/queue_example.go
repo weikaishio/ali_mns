@@ -47,7 +47,7 @@ func main() {
 	queueManager := ali_mns.NewMNSQueueManager(client)
 
 
-	err := queueManager.CreateSimpleQueue("test")
+	err := queueManager.CreateQueue("test", 0, 65536, 345600, 30, 0, 3)
 
 	if err != nil && !ali_mns.ERR_MNS_QUEUE_ALREADY_EXIST_AND_HAVE_SAME_ATTR.IsEqual(err) {
 		fmt.Println(err)

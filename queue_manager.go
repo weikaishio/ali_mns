@@ -11,8 +11,8 @@ import (
 
 type AliQueueManager interface {
     CreateSimpleQueue(queueName string) (err error)
-	CreateQueue(queueName string, delaySeconds int32, maxMessageSize int32, messageRetentionPeriod int32, visibilityTimeout int32, pollingWaitSeconds int32) (err error)
-	SetQueueAttributes(queueName string, delaySeconds int32, maxMessageSize int32, messageRetentionPeriod int32, visibilityTimeout int32, pollingWaitSeconds int32) (err error)
+	CreateQueue(queueName string, delaySeconds int32, maxMessageSize int32, messageRetentionPeriod int32, visibilityTimeout int32, pollingWaitSeconds int32, slices int32) (err error)
+	SetQueueAttributes(queueName string, delaySeconds int32, maxMessageSize int32, messageRetentionPeriod int32, visibilityTimeout int32, pollingWaitSeconds int32, slices int32) (err error)
 	GetQueueAttributes(queueName string) (attr QueueAttribute, err error)
 	DeleteQueue(queueName string) (err error)
 	ListQueue(nextMarker string, retNumber int32, prefix string) (queues Queues, err error)
@@ -98,10 +98,10 @@ func checkAttributes(delaySeconds int32, maxMessageSize int32, messageRetentionP
 }
 
 func (p *MNSQueueManager) CreateSimpleQueue(queueName string) (err error) {
-	return p.CreateQueue(queueName, 0, 65536, 345600, 30, 0)
+	return p.CreateQueue(queueName, 0, 65536, 345600, 30, 0, 2)
 }
 
-func (p *MNSQueueManager) CreateQueue(queueName string, delaySeconds int32, maxMessageSize int32, messageRetentionPeriod int32, visibilityTimeout int32, pollingWaitSeconds int32) (err error) {
+func (p *MNSQueueManager) CreateQueue(queueName string, delaySeconds int32, maxMessageSize int32, messageRetentionPeriod int32, visibilityTimeout int32, pollingWaitSeconds int32, slices int32) (err error) {
 	queueName = strings.TrimSpace(queueName)
 
 	if err = checkQueueName(queueName); err != nil {
@@ -122,7 +122,7 @@ func (p *MNSQueueManager) CreateQueue(queueName string, delaySeconds int32, maxM
 		MessageRetentionPeriod: messageRetentionPeriod,
 		VisibilityTimeout:      visibilityTimeout,
 		PollingWaitSeconds:     pollingWaitSeconds,
-        Slices:                 3,
+        Slices:                 slices,
 	}
 
 	var code int
@@ -136,7 +136,7 @@ func (p *MNSQueueManager) CreateQueue(queueName string, delaySeconds int32, maxM
 	return
 }
 
-func (p *MNSQueueManager) SetQueueAttributes(queueName string, delaySeconds int32, maxMessageSize int32, messageRetentionPeriod int32, visibilityTimeout int32, pollingWaitSeconds int32) (err error) {
+func (p *MNSQueueManager) SetQueueAttributes(queueName string, delaySeconds int32, maxMessageSize int32, messageRetentionPeriod int32, visibilityTimeout int32, pollingWaitSeconds int32, slices int32) (err error) {
 	queueName = strings.TrimSpace(queueName)
 
 	if err = checkQueueName(queueName); err != nil {
@@ -157,7 +157,7 @@ func (p *MNSQueueManager) SetQueueAttributes(queueName string, delaySeconds int3
 		MessageRetentionPeriod: messageRetentionPeriod,
 		VisibilityTimeout:      visibilityTimeout,
 		PollingWaitSeconds:     pollingWaitSeconds,
-        Slices:                 3,
+        Slices:                 slices,
 	}
 
 	_, err = send(p.cli, p.decoder, PUT, nil, &message, fmt.Sprintf("queues/%s?metaoverride=true", queueName), nil)
