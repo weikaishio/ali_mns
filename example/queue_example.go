@@ -4,6 +4,9 @@ import (
 	"encoding/json"
 	"io/ioutil"
 	"fmt"
+	_ "net/http/pprof"
+	"log"
+	"net/http"
 
 	"github.com/souriki/ali_mns"
 	"github.com/gogap/logs"
@@ -16,6 +19,11 @@ type appConf struct {
 }
 
 func main() {
+	go func() {
+		log.Println(http.ListenAndServe("localhost:8080", nil))
+	}()
+
+
 	conf := appConf{}
 
 	if bFile, e := ioutil.ReadFile("app.conf"); e != nil {
@@ -37,6 +45,8 @@ func main() {
 
 
 	queueManager := ali_mns.NewMNSQueueManager(client)
+
+
 	err := queueManager.CreateSimpleQueue("test")
 
 	if err != nil && !ali_mns.ERR_MNS_QUEUE_ALREADY_EXIST_AND_HAVE_SAME_ATTR.IsEqual(err) {
@@ -45,42 +55,49 @@ func main() {
 	}
 
 	queue := ali_mns.NewMNSQueue("test", client)
-	ret, err := queue.SendMessage(msg)
 
-	if err != nil {
-		fmt.Println(err)
-	} else {
-		logs.Pretty("response:", ret)
-	}
+	for i := 1 ; i < 10000 ; i++ {
+		_, err := queue.SendMessage(msg)
 
-	endChan := make(chan int)
-	respChan := make(chan ali_mns.MessageReceiveResponse)
-	errChan := make(chan error)
-	go func() {
-		select {
-		case resp := <-respChan:
-			{
-				logs.Pretty("response:", resp)
-				logs.Debug("change the visibility: ", resp.ReceiptHandle)
-				if ret, e := queue.ChangeMessageVisibility(resp.ReceiptHandle, 5); e != nil {
-					fmt.Println(e)
-				} else {
-					logs.Pretty("visibility changed", ret)
-					logs.Debug("delete it now: ", ret.ReceiptHandle)
-					if e := queue.DeleteMessage(ret.ReceiptHandle); e != nil {
+		go func() {
+			fmt.Println(queue.QPSMonitor().QPS())
+		}()
+
+		if err != nil {
+			fmt.Println(err)
+		} else {
+			// logs.Pretty("response:", ret)
+		}
+
+		endChan := make(chan int)
+		respChan := make(chan ali_mns.MessageReceiveResponse)
+		errChan := make(chan error)
+		go func() {
+			select {
+			case resp := <-respChan:
+				{
+					// logs.Pretty("response:", resp)
+					logs.Debug("change the visibility: ", resp.ReceiptHandle)
+					if ret, e := queue.ChangeMessageVisibility(resp.ReceiptHandle, 5); e != nil {
 						fmt.Println(e)
+					} else {
+						// logs.Pretty("visibility changed", ret)
+						logs.Debug("delete it now: ", ret.ReceiptHandle)
+						if e := queue.DeleteMessage(ret.ReceiptHandle); e != nil {
+							fmt.Println(e)
+						}
+						endChan <- 1
 					}
+				}
+			case err := <-errChan:
+				{
+					fmt.Println(err)
 					endChan <- 1
 				}
 			}
-		case err := <-errChan:
-			{
-				fmt.Println(err)
-				endChan <- 1
-			}
-		}
-	}()
+		}()
 
-	queue.ReceiveMessage(respChan, errChan, 30)
-	<-endChan
+		queue.ReceiveMessage(respChan, errChan, 30)
+		<-endChan
+	}
 }

@@ -151,6 +151,7 @@ type CreateQueueRequest struct {
 	MessageRetentionPeriod int32    `xml:"MessageRetentionPeriod,omitempty" json:"message_retention_period,omitempty"`
 	VisibilityTimeout      int32    `xml:"VisibilityTimeout,omitempty" json:"visibility_timeout,omitempty"`
 	PollingWaitSeconds     int32    `xml:"PollingWaitSeconds" json:"polling_wait_secods"`
+	Slices                 int32    `xml:"Slices" json:"slices"`
 }
 
 type CreateTopicRequest struct {

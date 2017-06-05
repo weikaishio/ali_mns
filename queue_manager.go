@@ -122,6 +122,7 @@ func (p *MNSQueueManager) CreateQueue(queueName string, delaySeconds int32, maxM
 		MessageRetentionPeriod: messageRetentionPeriod,
 		VisibilityTimeout:      visibilityTimeout,
 		PollingWaitSeconds:     pollingWaitSeconds,
+        Slices:                 3,
 	}
 
 	var code int
@@ -156,6 +157,7 @@ func (p *MNSQueueManager) SetQueueAttributes(queueName string, delaySeconds int3
 		MessageRetentionPeriod: messageRetentionPeriod,
 		VisibilityTimeout:      visibilityTimeout,
 		PollingWaitSeconds:     pollingWaitSeconds,
+        Slices:                 3,
 	}
 
 	_, err = send(p.cli, p.decoder, PUT, nil, &message, fmt.Sprintf("queues/%s?metaoverride=true", queueName), nil)
