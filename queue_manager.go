@@ -40,7 +40,7 @@ func checkDelaySeconds(seconds int32) (err error) {
 }
 
 func checkMaxMessageSize(maxSize int32) (err error) {
-	if maxSize < 1024 || maxSize > 65536 {
+	if maxSize < 1024 || maxSize > 262144 {
 		err = ERR_MNS_MAX_MESSAGE_SIZE_RANGE_ERROR.New()
 		return
 	}
