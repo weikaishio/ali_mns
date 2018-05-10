@@ -215,7 +215,7 @@ func (p *aliMNSClient) Send(method Method, headers map[string]string, message in
 	req.SetBody(xmlContent)
 
 	for header, value := range headers {
-		req.Header.Add(header, value)
+		req.Header.Set(header, value)
 	}
 
 	resp := fasthttp.AcquireResponse()
