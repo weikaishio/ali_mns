@@ -11,22 +11,22 @@ import (
 
 type AliMNSTopic interface {
 	Name() string
-    GenerateQueueEndpoint(queueName string) string
-    GenerateMailEndpoint(mailAddress string) string
+	GenerateQueueEndpoint(queueName string) string
+	GenerateMailEndpoint(mailAddress string) string
 
 	PublishMessage(message MessagePublishRequest) (resp MessageSendResponse, err error)
 
-    Subscribe(subscriptionName string, message MessageSubsribeRequest) (err error)
-    SetSubscriptionAttributes(subscriptionName string, notifyStrategy notifyStrategyType) (err error)
-    GetSubscriptionAttributes(subscriptionName string) (attr SubscriptionAttribute, err error)
-    Unsubscribe(subscriptionName string) (err error)
-    ListSubscriptionByTopic(nextMarker string, retNumber int32, prefix string) (subscriptions Subscriptions, err error)
+	Subscribe(subscriptionName string, message MessageSubsribeRequest) (err error)
+	SetSubscriptionAttributes(subscriptionName string, notifyStrategy NotifyStrategyType) (err error)
+	GetSubscriptionAttributes(subscriptionName string) (attr SubscriptionAttribute, err error)
+	Unsubscribe(subscriptionName string) (err error)
+	ListSubscriptionByTopic(nextMarker string, retNumber int32, prefix string) (subscriptions Subscriptions, err error)
 }
 
 type MNSTopic struct {
-	name       string
-	client     MNSClient
-	decoder    MNSDecoder
+	name    string
+	client  MNSClient
+	decoder MNSDecoder
 
 	qpsMonitor *QPSMonitor
 }
@@ -54,11 +54,11 @@ func (p *MNSTopic) Name() string {
 }
 
 func (p *MNSTopic) GenerateQueueEndpoint(queueName string) string {
-    return "acs:mns:" + p.client.getRegion() + ":" + p.client.getAccountID() + ":queues/" + queueName
+	return "acs:mns:" + p.client.getRegion() + ":" + p.client.getAccountID() + ":queues/" + queueName
 }
 
 func (p *MNSTopic) GenerateMailEndpoint(mailAddress string) string {
-    return "mail:directmail:" + mailAddress
+	return "mail:directmail:" + mailAddress
 }
 
 func (p *MNSTopic) PublishMessage(message MessagePublishRequest) (resp MessageSendResponse, err error) {
@@ -74,7 +74,7 @@ func (p *MNSTopic) Subscribe(subscriptionName string, message MessageSubsribeReq
 		return
 	}
 
-    p.qpsMonitor.checkQPS()
+	p.qpsMonitor.checkQPS()
 
 	var code int
 	code, err = send(p.client, p.decoder, PUT, nil, message, fmt.Sprintf("topics/%s/subscriptions/%s", p.name, subscriptionName), nil)
@@ -86,7 +86,7 @@ func (p *MNSTopic) Subscribe(subscriptionName string, message MessageSubsribeReq
 	return
 }
 
-func (p *MNSTopic) SetSubscriptionAttributes(subscriptionName string, notifyStrategy notifyStrategyType) (err error) {
+func (p *MNSTopic) SetSubscriptionAttributes(subscriptionName string, notifyStrategy NotifyStrategyType) (err error) {
 	subscriptionName = strings.TrimSpace(subscriptionName)
 
 	if err = checkTopicName(subscriptionName); err != nil {
@@ -94,7 +94,7 @@ func (p *MNSTopic) SetSubscriptionAttributes(subscriptionName string, notifyStra
 	}
 
 	message := SetSubscriptionAttributesRequest{
-		NotifyStrategy:         notifyStrategy,
+		NotifyStrategy: notifyStrategy,
 	}
 
 	p.qpsMonitor.checkQPS()
