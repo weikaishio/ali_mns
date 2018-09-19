@@ -6,13 +6,25 @@ import (
 	"encoding/xml"
 	"fmt"
 	"net/http"
-	"net/url"
+	neturl "net/url"
+	"os"
 	"strings"
+	"bytes"
 	"sync"
 	"time"
 
 	"github.com/gogap/errors"
-	"github.com/mreiferson/go-httpclient"
+	"github.com/valyala/fasthttp"
+)
+
+const (
+	DefaultQueueQPSLimit      int32 = 2000
+	DefaultTopicQPSLimit      int32 = 2000
+	DefaultDNSTTL             int32 = 10
+)
+
+const (
+	GLOBAL_PROXY = "MNS_GLOBAL_PROXY"
 )
 
 const (
@@ -41,64 +53,104 @@ const (
 )
 
 type MNSClient interface {
-	Send(method Method, headers map[string]string, message interface{}, resource string) (resp *http.Response, err error)
+	Send(method Method, headers map[string]string, message interface{}, resource string) (*fasthttp.Response, error)
 	SetProxy(url string)
+
+	getAccountID() (accountId string)
+	getRegion() (region string)
 }
 
-type AliMNSClient struct {
-	Timeout      int64
-	url          string
-	credential   Credential
-	accessKeyId  string
+type aliMNSClient struct {
+	Timeout     int64
+	url         *neturl.URL
+	credential  Credential
+	accessKeyId string
+	client      *fasthttp.Client
+	proxyURL    string
+
+	accountId   string
+	region      string
+
 	clientLocker sync.Mutex
-	client       *http.Client
-	proxyURL     string
 }
 
-func NewAliMNSClient(url, accessKeyId, accessKeySecret string) MNSClient {
-	if url == "" {
+func NewAliMNSClient(inputUrl, accessKeyId, accessKeySecret string) MNSClient {
+	if inputUrl == "" {
 		panic("ali-mns: message queue url is empty")
 	}
 
 	credential := NewAliMNSCredential(accessKeySecret)
 
-	aliMNSClient := new(AliMNSClient)
-	aliMNSClient.credential = credential
-	aliMNSClient.accessKeyId = accessKeyId
-	aliMNSClient.url = url
+	cli := new(aliMNSClient)
+	cli.credential = credential
+	cli.accessKeyId = accessKeyId
+
+	var err error
+	if cli.url, err = neturl.Parse(inputUrl); err != nil {
+		panic("err parse url")
+	}
+
+	// 1. parse region and accountid
+	pieces := strings.Split(inputUrl, ".")
+	if len(pieces) != 5 {
+		panic("ali-mns: message queue url is invalid")
+	}
+
+	accountIdSlice := strings.Split(pieces[0], "/")
+	cli.accountId = accountIdSlice[len(accountIdSlice) - 1]
+
+	regionSlice := strings.Split(pieces[2], "-internal")
+	cli.region = regionSlice[0]
+
+	if globalurl := os.Getenv(GLOBAL_PROXY); globalurl != "" {
+		cli.proxyURL = globalurl
+	}
+
+    // 2. now init http client
+	cli.initFastHttpClient()
+
+	return cli
+}
+
+func (p aliMNSClient) getAccountID() (accountId string) {
+	return p.accountId;
+}
+
+func (p aliMNSClient) getRegion() (region string) {
+	return p.region
+}
+
+func (p *aliMNSClient) SetProxy(url string) {
+	if url == p.proxyURL {
+		return
+	}
+
+	p.proxyURL = url
+}
+
+func (p *aliMNSClient) initFastHttpClient() {
+	p.clientLocker.Lock()
+	defer p.clientLocker.Unlock()
 
 	timeoutInt := DefaultTimeout
 
-	if aliMNSClient.Timeout > 0 {
-		timeoutInt = aliMNSClient.Timeout
+	if p.Timeout > 0 {
+		timeoutInt = p.Timeout
 	}
 
 	timeout := time.Second * time.Duration(timeoutInt)
 
-	transport := &httpclient.Transport{
-		Proxy:                 aliMNSClient.proxy,
-		ConnectTimeout:        time.Second * 3,
-		RequestTimeout:        timeout,
-		ResponseHeaderTimeout: timeout + time.Second,
-	}
-
-	aliMNSClient.client = &http.Client{Transport: transport}
-
-	return aliMNSClient
+	p.client = &fasthttp.Client{ReadTimeout: timeout, WriteTimeout: timeout}
 }
 
-func (p *AliMNSClient) SetProxy(url string) {
-	p.proxyURL = url
-}
-
-func (p *AliMNSClient) proxy(req *http.Request) (*url.URL, error) {
+func (p *aliMNSClient) proxy(req *http.Request) (*neturl.URL, error) {
 	if p.proxyURL != "" {
-		return url.Parse(p.proxyURL)
+		return neturl.Parse(p.proxyURL)
 	}
 	return nil, nil
 }
 
-func (p *AliMNSClient) authorization(method Method, headers map[string]string, resource string) (authHeader string, err error) {
+func (p *aliMNSClient) authorization(method Method, headers map[string]string, resource string) (authHeader string, err error) {
 	if signature, e := p.credential.Signature(method, headers, resource); e != nil {
 		return "", e
 	} else {
@@ -108,8 +160,9 @@ func (p *AliMNSClient) authorization(method Method, headers map[string]string, r
 	return
 }
 
-func (p *AliMNSClient) Send(method Method, headers map[string]string, message interface{}, resource string) (resp *http.Response, err error) {
+func (p *aliMNSClient) Send(method Method, headers map[string]string, message interface{}, resource string) (*fasthttp.Response, error) {
 	var xmlContent []byte
+	var err error
 
 	if message == nil {
 		xmlContent = []byte{}
@@ -122,7 +175,7 @@ func (p *AliMNSClient) Send(method Method, headers map[string]string, message in
 		default:
 			if bXml, e := xml.Marshal(message); e != nil {
 				err = ERR_MARSHAL_MESSAGE_FAILED.New(errors.Params{"err": e})
-				return
+				return nil, err
 			} else {
 				xmlContent = bXml
 			}
@@ -143,35 +196,39 @@ func (p *AliMNSClient) Send(method Method, headers map[string]string, message in
 
 	if authHeader, e := p.authorization(method, headers, fmt.Sprintf("/%s", resource)); e != nil {
 		err = ERR_GENERAL_AUTH_HEADER_FAILED.New(errors.Params{"err": e})
-		return
+		return nil, err
 	} else {
 		headers[AUTHORIZATION] = authHeader
 	}
 
-	url := p.url + "/" + resource
+	var buffer bytes.Buffer
+	buffer.WriteString(p.url.String())
+	buffer.WriteString("/")
+	buffer.WriteString(resource)
 
-	postBodyReader := strings.NewReader(string(xmlContent))
+	url := buffer.String()
 
 	// 莫名的lock 加这个是为了啥 想不通。。 推拉模式 加lock 这是直接限流请求了
 	// p.clientLocker.Lock()
 	// defer p.clientLocker.Unlock()
+	req := fasthttp.AcquireRequest()
 
-	var req *http.Request
-	if req, err = http.NewRequest(string(method), url, postBodyReader); err != nil {
-		err = ERR_CREATE_NEW_REQUEST_FAILED.New(errors.Params{"err": err})
-		return
-	}
+	req.SetRequestURI(url)
+	req.Header.SetMethod(string(method))
+	req.SetBody(xmlContent)
 
 	for header, value := range headers {
-		req.Header.Add(header, value)
+		req.Header.Set(header, value)
 	}
 
-	if resp, err = p.client.Do(req); err != nil {
+	resp := fasthttp.AcquireResponse()
+
+	if err = p.client.Do(req,resp); err != nil {
 		err = ERR_SEND_REQUEST_FAILED.New(errors.Params{"err": err})
-		return
+		return nil , err
 	}
 
-	return
+	return resp, nil
 }
 
 func initMNSErrors() {
@@ -201,10 +258,19 @@ func initMNSErrors() {
 		"SignatureDoesNotMatch":      ERR_MNS_SIGNATURE_DOES_NOT_MATCH,
 		"TimeExpired":                ERR_MNS_TIME_EXPIRED,
 		"QpsLimitExceeded":           ERR_MNS_QPS_LIMIT_EXCEEDED,
+		"TopicAlreadyExist":          ERR_MNS_TOPIC_ALREADY_EXIST,
+		"TopicNameLengthError":       ERR_MNS_TOPIC_NAME_LENGTH_ERROR,
+		"TopicNotExist":              ERR_MNS_TOPIC_NOT_EXIST,
+		"SubscriptionNameLengthError":ERR_MNS_SUBSRIPTION_NAME_LENGTH_ERROR,
+		"TopicNameInvalid":           ERR_MNS_INVALID_TOPIC_NAME,
+		"SubsriptionNameInvalid":     ERR_MNS_INVALID_SUBSCRIPTION_NAME,
+		"SubscriptionAlreadyExist":   ERR_MNS_SUBSCRIPTION_ALREADY_EXIST,
+		"EndpointInvalid":            ERR_MNS_INVALID_ENDPOINT,
+		"SubscriberNotExist":         ERR_MNS_SUBSCRIBER_NOT_EXIST,
 	}
 }
 
-func ParseError(resp ErrorMessageResponse, resource string) (err error) {
+func ParseError(resp ErrorResponse, resource string) (err error) {
 	if errCodeTemplate, exist := errMapping[resp.Code]; exist {
 		err = errCodeTemplate.New(errors.Params{"resp": resp, "resource": resource})
 	} else {

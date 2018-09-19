@@ -6,6 +6,7 @@ import (
 )
 
 type QPSMonitor struct {
+	qpsLimit     int32
 	latestIndex  int32
 	delaySecond  int32
 	totalQueries []int32
@@ -32,11 +33,21 @@ func (p *QPSMonitor) QPS() int32 {
 	return totalCount / (p.delaySecond - 1)
 }
 
-func NewQPSMonitor(delaySecond int32) *QPSMonitor {
+func (p *QPSMonitor) checkQPS() {
+	p.Pulse()
+	if p.qpsLimit > 0 {
+		for p.QPS() > p.qpsLimit {
+			time.Sleep(time.Millisecond * 10)
+		}
+	}
+}
+
+func NewQPSMonitor(delaySecond int32, qpsLimit int32) *QPSMonitor {
 	if delaySecond < 5 {
 		delaySecond = 5
 	}
 	monitor := QPSMonitor{
+		qpsLimit:     qpsLimit,
 		delaySecond:  delaySecond,
 		totalQueries: make([]int32, delaySecond),
 	}
