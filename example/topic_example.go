@@ -2,10 +2,10 @@ package main
 
 import (
 	"encoding/json"
-	"io/ioutil"
 	"fmt"
+	"io/ioutil"
 
-	"github.com/souriki/ali_mns"
+	"github.com/dxh031/ali_mns"
 	"github.com/gogap/logs"
 )
 
@@ -30,70 +30,70 @@ func main() {
 		conf.AccessKeyId,
 		conf.AccessKeySecret)
 
-    // 1. create a queue for receiving pushed messages
-    queueManager := ali_mns.NewMNSQueueManager(client)
+	// 1. create a queue for receiving pushed messages
+	queueManager := ali_mns.NewMNSQueueManager(client)
 	err := queueManager.CreateSimpleQueue("testQueue")
 	if err != nil && !ali_mns.ERR_MNS_QUEUE_ALREADY_EXIST_AND_HAVE_SAME_ATTR.IsEqual(err) {
 		fmt.Println(err)
 		return
 	}
 
-    // 2. create the topic
+	// 2. create the topic
 	topicManager := ali_mns.NewMNSTopicManager(client)
-    // topicManager.DeleteTopic("testTopic")
+	// topicManager.DeleteTopic("testTopic")
 	err = topicManager.CreateSimpleTopic("testTopic")
 	if err != nil && !ali_mns.ERR_MNS_TOPIC_ALREADY_EXIST_AND_HAVE_SAME_ATTR.IsEqual(err) {
 		fmt.Println(err)
 		return
 	}
 
-    // 3. subscribe to topic, the endpoint is set to be a queue in this sample
-    topic := ali_mns.NewMNSTopic("testTopic", client)
-    sub := ali_mns.MessageSubsribeRequest{
-        Endpoint:  topic.GenerateQueueEndpoint("testQueue"),
-        NotifyContentFormat: ali_mns.SIMPLIFIED,
-    }
+	// 3. subscribe to topic, the endpoint is set to be a queue in this sample
+	topic := ali_mns.NewMNSTopic("testTopic", client)
+	sub := ali_mns.MessageSubsribeRequest{
+		Endpoint:            topic.GenerateQueueEndpoint("testQueue"),
+		NotifyContentFormat: ali_mns.SIMPLIFIED,
+	}
 
-    // topic.Unsubscribe("SubscriptionNameA")
-    err = topic.Subscribe("SubscriptionNameA", sub)
-    if (err != nil && !ali_mns.ERR_MNS_SUBSCRIPTION_ALREADY_EXIST_AND_HAVE_SAME_ATTR.IsEqual(err)) {
-        fmt.Println(err)
-        return
-    }
+	// topic.Unsubscribe("SubscriptionNameA")
+	err = topic.Subscribe("SubscriptionNameA", sub)
+	if err != nil && !ali_mns.ERR_MNS_SUBSCRIPTION_ALREADY_EXIST_AND_HAVE_SAME_ATTR.IsEqual(err) {
+		fmt.Println(err)
+		return
+	}
 
-    /*
-	Please refer to
-	https://help.aliyun.com/document_detail/27434.html
-	before using mail push
+	/*
+			Please refer to
+			https://help.aliyun.com/document_detail/27434.html
+			before using mail push
 
-	sub = ali_mns.MessageSubsribeRequest{
-        Endpoint:  topic.GenerateMailEndpoint("a@b.com"),
-        NotifyContentFormat: ali_mns.SIMPLIFIED,
-    }
-    err = topic.Subscribe("SubscriptionNameB", sub)
-    if (err != nil && !ali_mns.ERR_MNS_SUBSCRIPTION_ALREADY_EXIST_AND_HAVE_SAME_ATTR.IsEqual(err)) {
-        fmt.Println(err)
-        return
-    }
+			sub = ali_mns.MessageSubsribeRequest{
+		        Endpoint:  topic.GenerateMailEndpoint("a@b.com"),
+		        NotifyContentFormat: ali_mns.SIMPLIFIED,
+		    }
+		    err = topic.Subscribe("SubscriptionNameB", sub)
+		    if (err != nil && !ali_mns.ERR_MNS_SUBSCRIPTION_ALREADY_EXIST_AND_HAVE_SAME_ATTR.IsEqual(err)) {
+		        fmt.Println(err)
+		        return
+		    }
 	*/
 
-    // 4. now publish message
-    msg := ali_mns.MessagePublishRequest{
-        MessageBody:  "hello topic <\"souriki/ali_mns\">",
+	// 4. now publish message
+	msg := ali_mns.MessagePublishRequest{
+		MessageBody: "hello topic <\"souriki/ali_mns\">",
 		MessageAttributes: &ali_mns.MessageAttributes{
 			MailAttributes: &ali_mns.MailAttributes{
-				Subject: "AAA中文",
+				Subject:     "AAA中文",
 				AccountName: "BBB",
 			},
 		},
-    }
-    _, err = topic.PublishMessage(msg)
-    if (err != nil) {
-        fmt.Println(err)
-        return
-    }
+	}
+	_, err = topic.PublishMessage(msg)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
 
-    // 5. receive the message from queue
+	// 5. receive the message from queue
 	queue := ali_mns.NewMNSQueue("testQueue", client)
 
 	endChan := make(chan int)
@@ -119,7 +119,7 @@ func main() {
 		case err := <-errChan:
 			{
 				fmt.Println(err)
-                endChan <- 1
+				endChan <- 1
 			}
 		}
 	}()

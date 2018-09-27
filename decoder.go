@@ -1,9 +1,9 @@
 package ali_mns
 
 import (
+	"bytes"
 	"encoding/xml"
 	"io"
-	"bytes"
 )
 
 type MNSDecoder interface {
@@ -52,7 +52,7 @@ func (p *aliMNSDecoder) DecodeError(bodyBytes []byte, resource string) (decodedE
 }
 
 func NewBatchOpDecoder(v interface{}) MNSDecoder {
-	return &batchOpDecoder{v:v,}
+	return &batchOpDecoder{v: v}
 }
 
 func (p *batchOpDecoder) Decode(reader io.Reader, v interface{}) (err error) {

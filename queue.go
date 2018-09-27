@@ -2,7 +2,7 @@ package ali_mns
 
 import (
 	"fmt"
-    "net/url"
+	"net/url"
 )
 
 var (
@@ -24,9 +24,9 @@ type AliMNSQueue interface {
 }
 
 type MNSQueue struct {
-	name          string
-	client        MNSClient
-	decoder       MNSDecoder
+	name    string
+	client  MNSClient
+	decoder MNSDecoder
 
 	qpsMonitor *QPSMonitor
 }
@@ -90,7 +90,7 @@ func (p *MNSQueue) ReceiveMessage(respChan chan MessageReceiveResponse, errChan 
 			resp := MessageReceiveResponse{}
 			_, err := send(p.client, p.decoder, GET, nil, nil, resource, &resp)
 			if err != nil {
-				// if no 
+				// if no
 				errChan <- err
 			} else {
 				respChan <- resp

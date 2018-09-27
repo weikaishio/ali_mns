@@ -10,7 +10,7 @@ import (
 )
 
 type AliQueueManager interface {
-    CreateSimpleQueue(queueName string) (err error)
+	CreateSimpleQueue(queueName string) (err error)
 	CreateQueue(queueName string, delaySeconds int32, maxMessageSize int32, messageRetentionPeriod int32, visibilityTimeout int32, pollingWaitSeconds int32, slices int32) (err error)
 	SetQueueAttributes(queueName string, delaySeconds int32, maxMessageSize int32, messageRetentionPeriod int32, visibilityTimeout int32, pollingWaitSeconds int32, slices int32) (err error)
 	GetQueueAttributes(queueName string) (attr QueueAttribute, err error)
@@ -74,8 +74,8 @@ func checkPollingWaitSeconds(pollingWaitSeconds int32) (err error) {
 
 func NewMNSQueueManager(client MNSClient) AliQueueManager {
 	return &MNSQueueManager{
-		cli:         client,
-		decoder:     NewAliMNSDecoder(),
+		cli:     client,
+		decoder: NewAliMNSDecoder(),
 	}
 }
 
@@ -123,7 +123,7 @@ func (p *MNSQueueManager) CreateQueue(queueName string, delaySeconds int32, maxM
 		MessageRetentionPeriod: messageRetentionPeriod,
 		VisibilityTimeout:      visibilityTimeout,
 		PollingWaitSeconds:     pollingWaitSeconds,
-        Slices:                 slices,
+		Slices:                 slices,
 	}
 
 	var code int
@@ -158,7 +158,7 @@ func (p *MNSQueueManager) SetQueueAttributes(queueName string, delaySeconds int3
 		MessageRetentionPeriod: messageRetentionPeriod,
 		VisibilityTimeout:      visibilityTimeout,
 		PollingWaitSeconds:     pollingWaitSeconds,
-        Slices:                 slices,
+		Slices:                 slices,
 	}
 
 	_, err = send(p.cli, p.decoder, PUT, nil, &message, fmt.Sprintf("queues/%s?metaoverride=true", queueName), nil)
@@ -244,11 +244,9 @@ func (p *MNSQueueManager) ListQueueDetail(nextMarker string, retNumber int32, pr
 		header["x-mns-prefix"] = prefix
 	}
 
-	header["x-mns-with-meta"]="true"
+	header["x-mns-with-meta"] = "true"
 
 	_, err = send(p.cli, p.decoder, GET, header, nil, "queues", &queueDetails)
 
 	return
 }
-
-

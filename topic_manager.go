@@ -10,14 +10,13 @@ import (
 )
 
 type AliTopicManager interface {
-    CreateSimpleTopic(topicName string) (err error)
+	CreateSimpleTopic(topicName string) (err error)
 	CreateTopic(topicName string, maxMessageSize int32, loggingEnabled bool) (err error)
 	SetTopicAttributes(topicName string, maxMessageSize int32, loggingEnabled bool) (err error)
 	GetTopicAttributes(topicName string) (attr TopicAttribute, err error)
 	DeleteTopic(topicName string) (err error)
 	ListTopic(nextMarker string, retNumber int32, prefix string) (topics Topics, err error)
 	ListTopicDetail(nextMarker string, retNumber int32, prefix string) (topicDetails TopicDetails, err error)
-
 }
 
 type MNSTopicManager struct {
@@ -35,8 +34,8 @@ func checkTopicName(topicName string) (err error) {
 
 func NewMNSTopicManager(client MNSClient) AliTopicManager {
 	return &MNSTopicManager{
-		cli:         client,
-		decoder:     NewAliMNSDecoder(),
+		cli:     client,
+		decoder: NewAliMNSDecoder(),
 	}
 }
 
@@ -56,8 +55,8 @@ func (p *MNSTopicManager) CreateTopic(topicName string, maxMessageSize int32, lo
 	}
 
 	message := CreateTopicRequest{
-		MaxMessageSize:         maxMessageSize,
-        LoggingEnabled:         loggingEnabled,
+		MaxMessageSize: maxMessageSize,
+		LoggingEnabled: loggingEnabled,
 	}
 
 	var code int
@@ -78,13 +77,13 @@ func (p *MNSTopicManager) SetTopicAttributes(topicName string, maxMessageSize in
 		return
 	}
 
-    if err = checkMaxMessageSize(maxMessageSize); err != nil {
+	if err = checkMaxMessageSize(maxMessageSize); err != nil {
 		return
 	}
 
-    message := CreateTopicRequest{
-		MaxMessageSize:         maxMessageSize,
-        LoggingEnabled:         loggingEnabled,
+	message := CreateTopicRequest{
+		MaxMessageSize: maxMessageSize,
+		LoggingEnabled: loggingEnabled,
 	}
 
 	_, err = send(p.cli, p.decoder, PUT, nil, &message, fmt.Sprintf("topics/%s?metaoverride=true", topicName), nil)
@@ -92,7 +91,7 @@ func (p *MNSTopicManager) SetTopicAttributes(topicName string, maxMessageSize in
 }
 
 func (p *MNSTopicManager) GetTopicAttributes(topicName string) (attr TopicAttribute, err error) {
-    topicName = strings.TrimSpace(topicName)
+	topicName = strings.TrimSpace(topicName)
 
 	if err = checkTopicName(topicName); err != nil {
 		return
@@ -104,7 +103,7 @@ func (p *MNSTopicManager) GetTopicAttributes(topicName string) (attr TopicAttrib
 }
 
 func (p *MNSTopicManager) DeleteTopic(topicName string) (err error) {
-    topicName = strings.TrimSpace(topicName)
+	topicName = strings.TrimSpace(topicName)
 
 	if err = checkTopicName(topicName); err != nil {
 		return
@@ -170,10 +169,9 @@ func (p *MNSTopicManager) ListTopicDetail(nextMarker string, retNumber int32, pr
 		header["x-mns-prefix"] = prefix
 	}
 
-	header["x-mns-with-meta"]="true"
+	header["x-mns-with-meta"] = "true"
 
 	_, err = send(p.cli, p.decoder, GET, header, nil, "topics", &topicDetails)
 
 	return
 }
-

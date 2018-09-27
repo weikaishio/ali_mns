@@ -2,14 +2,14 @@ package main
 
 import (
 	"encoding/json"
-	"io/ioutil"
 	"fmt"
-	_ "net/http/pprof"
+	"io/ioutil"
 	"log"
 	"net/http"
+	_ "net/http/pprof"
 
-	"github.com/souriki/ali_mns"
 	"github.com/gogap/logs"
+	"github.com/souriki/ali_mns"
 )
 
 type appConf struct {
@@ -22,7 +22,6 @@ func main() {
 	go func() {
 		log.Println(http.ListenAndServe("localhost:8080", nil))
 	}()
-
 
 	conf := appConf{}
 
@@ -43,9 +42,7 @@ func main() {
 		DelaySeconds: 0,
 		Priority:     8}
 
-
 	queueManager := ali_mns.NewMNSQueueManager(client)
-
 
 	err := queueManager.CreateQueue("test", 0, 65536, 345600, 30, 0, 3)
 
@@ -56,7 +53,7 @@ func main() {
 
 	queue := ali_mns.NewMNSQueue("test", client)
 
-	for i := 1 ; i < 10000 ; i++ {
+	for i := 1; i < 10000; i++ {
 		_, err := queue.SendMessage(msg)
 
 		go func() {

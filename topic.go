@@ -156,8 +156,6 @@ func (p *MNSTopic) ListSubscriptionByTopic(nextMarker string, retNumber int32, p
 	return
 }
 
-
-
 func (p *MNSTopic) ListSubscriptionDetailByTopic(nextMarker string, retNumber int32, prefix string) (subscriptionDetails SubscriptionDetails, err error) {
 	header := map[string]string{}
 
@@ -182,10 +180,9 @@ func (p *MNSTopic) ListSubscriptionDetailByTopic(nextMarker string, retNumber in
 		header["x-mns-prefix"] = prefix
 	}
 
-	header["x-mns-with-meta"]="true"
+	header["x-mns-with-meta"] = "true"
 
 	_, err = send(p.client, p.decoder, GET, header, nil, fmt.Sprintf("topics/%s/subscriptions", p.name), &subscriptionDetails)
 
 	return
 }
-

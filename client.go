@@ -1,6 +1,7 @@
 package ali_mns
 
 import (
+	"bytes"
 	"crypto/md5"
 	"encoding/base64"
 	"encoding/xml"
@@ -9,7 +10,6 @@ import (
 	neturl "net/url"
 	"os"
 	"strings"
-	"bytes"
 	"sync"
 	"time"
 
@@ -18,9 +18,9 @@ import (
 )
 
 const (
-	DefaultQueueQPSLimit      int32 = 2000
-	DefaultTopicQPSLimit      int32 = 2000
-	DefaultDNSTTL             int32 = 10
+	DefaultQueueQPSLimit int32 = 2000
+	DefaultTopicQPSLimit int32 = 2000
+	DefaultDNSTTL        int32 = 10
 )
 
 const (
@@ -68,8 +68,8 @@ type aliMNSClient struct {
 	client      *fasthttp.Client
 	proxyURL    string
 
-	accountId   string
-	region      string
+	accountId string
+	region    string
 
 	clientLocker sync.Mutex
 }
@@ -97,7 +97,7 @@ func NewAliMNSClient(inputUrl, accessKeyId, accessKeySecret string) MNSClient {
 	}
 
 	accountIdSlice := strings.Split(pieces[0], "/")
-	cli.accountId = accountIdSlice[len(accountIdSlice) - 1]
+	cli.accountId = accountIdSlice[len(accountIdSlice)-1]
 
 	regionSlice := strings.Split(pieces[2], "-internal")
 	cli.region = regionSlice[0]
@@ -106,14 +106,14 @@ func NewAliMNSClient(inputUrl, accessKeyId, accessKeySecret string) MNSClient {
 		cli.proxyURL = globalurl
 	}
 
-    // 2. now init http client
+	// 2. now init http client
 	cli.initFastHttpClient()
 
 	return cli
 }
 
 func (p aliMNSClient) getAccountID() (accountId string) {
-	return p.accountId;
+	return p.accountId
 }
 
 func (p aliMNSClient) getRegion() (region string) {
@@ -223,9 +223,9 @@ func (p *aliMNSClient) Send(method Method, headers map[string]string, message in
 
 	resp := fasthttp.AcquireResponse()
 
-	if err = p.client.Do(req,resp); err != nil {
+	if err = p.client.Do(req, resp); err != nil {
 		err = ERR_SEND_REQUEST_FAILED.New(errors.Params{"err": err})
-		return nil , err
+		return nil, err
 	}
 
 	return resp, nil
@@ -233,40 +233,40 @@ func (p *aliMNSClient) Send(method Method, headers map[string]string, message in
 
 func initMNSErrors() {
 	errMapping = map[string]errors.ErrCodeTemplate{
-		"AccessDenied":               ERR_MNS_ACCESS_DENIED,
-		"InvalidAccessKeyId":         ERR_MNS_INVALID_ACCESS_KEY_ID,
-		"InternalError":              ERR_MNS_INTERNAL_ERROR,
-		"InvalidAuthorizationHeader": ERR_MNS_INVALID_AUTHORIZATION_HEADER,
-		"InvalidDateHeader":          ERR_MNS_INVALID_DATE_HEADER,
-		"InvalidArgument":            ERR_MNS_INVALID_ARGUMENT,
-		"InvalidDegist":              ERR_MNS_INVALID_DEGIST,
-		"InvalidRequestURL":          ERR_MNS_INVALID_REQUEST_URL,
-		"InvalidQueryString":         ERR_MNS_INVALID_QUERY_STRING,
-		"MalformedXML":               ERR_MNS_MALFORMED_XML,
-		"MissingAuthorizationHeader": ERR_MNS_MISSING_AUTHORIZATION_HEADER,
-		"MissingDateHeader":          ERR_MNS_MISSING_DATE_HEADER,
-		"MissingVersionHeader":       ERR_MNS_MISSING_VERSION_HEADER,
-		"MissingReceiptHandle":       ERR_MNS_MISSING_RECEIPT_HANDLE,
-		"MissingVisibilityTimeout":   ERR_MNS_MISSING_VISIBILITY_TIMEOUT,
-		"MessageNotExist":            ERR_MNS_MESSAGE_NOT_EXIST,
-		"QueueAlreadyExist":          ERR_MNS_QUEUE_ALREADY_EXIST,
-		"QueueDeletedRecently":       ERR_MNS_QUEUE_DELETED_RECENTLY,
-		"InvalidQueueName":           ERR_MNS_INVALID_QUEUE_NAME,
-		"QueueNameLengthError":       ERR_MNS_QUEUE_NAME_LENGTH_ERROR,
-		"QueueNotExist":              ERR_MNS_QUEUE_NOT_EXIST,
-		"ReceiptHandleError":         ERR_MNS_RECEIPT_HANDLE_ERROR,
-		"SignatureDoesNotMatch":      ERR_MNS_SIGNATURE_DOES_NOT_MATCH,
-		"TimeExpired":                ERR_MNS_TIME_EXPIRED,
-		"QpsLimitExceeded":           ERR_MNS_QPS_LIMIT_EXCEEDED,
-		"TopicAlreadyExist":          ERR_MNS_TOPIC_ALREADY_EXIST,
-		"TopicNameLengthError":       ERR_MNS_TOPIC_NAME_LENGTH_ERROR,
-		"TopicNotExist":              ERR_MNS_TOPIC_NOT_EXIST,
-		"SubscriptionNameLengthError":ERR_MNS_SUBSRIPTION_NAME_LENGTH_ERROR,
-		"TopicNameInvalid":           ERR_MNS_INVALID_TOPIC_NAME,
-		"SubsriptionNameInvalid":     ERR_MNS_INVALID_SUBSCRIPTION_NAME,
-		"SubscriptionAlreadyExist":   ERR_MNS_SUBSCRIPTION_ALREADY_EXIST,
-		"EndpointInvalid":            ERR_MNS_INVALID_ENDPOINT,
-		"SubscriberNotExist":         ERR_MNS_SUBSCRIBER_NOT_EXIST,
+		"AccessDenied":                ERR_MNS_ACCESS_DENIED,
+		"InvalidAccessKeyId":          ERR_MNS_INVALID_ACCESS_KEY_ID,
+		"InternalError":               ERR_MNS_INTERNAL_ERROR,
+		"InvalidAuthorizationHeader":  ERR_MNS_INVALID_AUTHORIZATION_HEADER,
+		"InvalidDateHeader":           ERR_MNS_INVALID_DATE_HEADER,
+		"InvalidArgument":             ERR_MNS_INVALID_ARGUMENT,
+		"InvalidDegist":               ERR_MNS_INVALID_DEGIST,
+		"InvalidRequestURL":           ERR_MNS_INVALID_REQUEST_URL,
+		"InvalidQueryString":          ERR_MNS_INVALID_QUERY_STRING,
+		"MalformedXML":                ERR_MNS_MALFORMED_XML,
+		"MissingAuthorizationHeader":  ERR_MNS_MISSING_AUTHORIZATION_HEADER,
+		"MissingDateHeader":           ERR_MNS_MISSING_DATE_HEADER,
+		"MissingVersionHeader":        ERR_MNS_MISSING_VERSION_HEADER,
+		"MissingReceiptHandle":        ERR_MNS_MISSING_RECEIPT_HANDLE,
+		"MissingVisibilityTimeout":    ERR_MNS_MISSING_VISIBILITY_TIMEOUT,
+		"MessageNotExist":             ERR_MNS_MESSAGE_NOT_EXIST,
+		"QueueAlreadyExist":           ERR_MNS_QUEUE_ALREADY_EXIST,
+		"QueueDeletedRecently":        ERR_MNS_QUEUE_DELETED_RECENTLY,
+		"InvalidQueueName":            ERR_MNS_INVALID_QUEUE_NAME,
+		"QueueNameLengthError":        ERR_MNS_QUEUE_NAME_LENGTH_ERROR,
+		"QueueNotExist":               ERR_MNS_QUEUE_NOT_EXIST,
+		"ReceiptHandleError":          ERR_MNS_RECEIPT_HANDLE_ERROR,
+		"SignatureDoesNotMatch":       ERR_MNS_SIGNATURE_DOES_NOT_MATCH,
+		"TimeExpired":                 ERR_MNS_TIME_EXPIRED,
+		"QpsLimitExceeded":            ERR_MNS_QPS_LIMIT_EXCEEDED,
+		"TopicAlreadyExist":           ERR_MNS_TOPIC_ALREADY_EXIST,
+		"TopicNameLengthError":        ERR_MNS_TOPIC_NAME_LENGTH_ERROR,
+		"TopicNotExist":               ERR_MNS_TOPIC_NOT_EXIST,
+		"SubscriptionNameLengthError": ERR_MNS_SUBSRIPTION_NAME_LENGTH_ERROR,
+		"TopicNameInvalid":            ERR_MNS_INVALID_TOPIC_NAME,
+		"SubsriptionNameInvalid":      ERR_MNS_INVALID_SUBSCRIPTION_NAME,
+		"SubscriptionAlreadyExist":    ERR_MNS_SUBSCRIPTION_ALREADY_EXIST,
+		"EndpointInvalid":             ERR_MNS_INVALID_ENDPOINT,
+		"SubscriberNotExist":          ERR_MNS_SUBSCRIBER_NOT_EXIST,
 	}
 }
 

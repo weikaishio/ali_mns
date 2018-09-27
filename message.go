@@ -243,10 +243,10 @@ type Queues struct {
 	NextMarker string   `xml:"NextMarker" json:"next_marker"`
 }
 
-type QueueDetails struct{
-	XMLName    xml.Name `xml:"Queues" json:"-"`
-	Attrs     []QueueAttribute  `xml:"Queue" json:"queues"`
-	NextMarker string   `xml:"NextMarker" json:"next_marker"`
+type QueueDetails struct {
+	XMLName    xml.Name         `xml:"Queues" json:"-"`
+	Attrs      []QueueAttribute `xml:"Queue" json:"queues"`
+	NextMarker string           `xml:"NextMarker" json:"next_marker"`
 }
 
 type Topic struct {
@@ -259,10 +259,10 @@ type Topics struct {
 	NextMarker string   `xml:"NextMarker" json:"next_marker"`
 }
 
-type TopicDetails struct{
-	XMLName    xml.Name `xml:"Topics" json:"-"`
-	Attrs     []TopicAttribute  `xml:"Topic" json:"topics"`
-	NextMarker string   `xml:"NextMarker" json:"next_marker"`
+type TopicDetails struct {
+	XMLName    xml.Name         `xml:"Topics" json:"-"`
+	Attrs      []TopicAttribute `xml:"Topic" json:"topics"`
+	NextMarker string           `xml:"NextMarker" json:"next_marker"`
 }
 
 type Subscription struct {
@@ -276,7 +276,7 @@ type Subscriptions struct {
 }
 
 type SubscriptionDetails struct {
-	XMLName       xml.Name       `xml:"Subscriptions" json:"-"`
-	Attrs         []SubscriptionAttribute `xml:"Subscription" json:"subscriptions"`
-	NextMarker    string         `xml:"NextMarker" json:"next_marker"`
+	XMLName    xml.Name                `xml:"Subscriptions" json:"-"`
+	Attrs      []SubscriptionAttribute `xml:"Subscription" json:"subscriptions"`
+	NextMarker string                  `xml:"NextMarker" json:"next_marker"`
 }
